@@ -1,12 +1,16 @@
-name: .NET CI
+name: .NET CI/CD Pipeline
 
 on:
   push:
     branches:
       - main
 
+env:
+  AZURE_WEBAPP_NAME: DemoApiApp
+  AZURE_WEBAPP_PACKAGE_PATH: './DemoApi/publish'
+
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,10 +23,20 @@ jobs:
         dotnet-version: '8.0.x'
 
     - name: Restore Dependencies
-      run: dotnet restore
+      run: dotnet restore DemoApi.sln
 
     - name: Build
-      run: dotnet build --configuration Release --no-restore
+      run: dotnet build DemoApi.sln --configuration Release --no-restore
 
     - name: Test
-      run: dotnet test --no-restore --verbosity normal
+      run: dotnet test DemoApi.Tests/DemoApi.Tests.csproj --no-restore
+
+    - name: Publish
+      run: dotnet publish DemoApi/DemoApi.csproj -c Release -o ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+
+    - name: Deploy to Azure Web App
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
